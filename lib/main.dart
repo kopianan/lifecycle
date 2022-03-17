@@ -1,33 +1,17 @@
-import 'dart:async';
+import 'dart:isolate';
 
 import 'package:flutter/material.dart';
+import 'package:life_cycle/life_cycle_manager.dart';
 import 'package:life_cycle/pages/home_page.dart';
+import 'package:life_cycle/pages/pin_page.dart';
 import 'package:secure_application/secure_application.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:workmanager/workmanager.dart';
 
-void callbackDispatcher() async {
-  final prefs = await SharedPreferences.getInstance();
-  Workmanager().executeTask((task, inputdata) async {
-    switch (task) {
-      case "task":
-        print("Data delete from memory");
-        await prefs.setBool('lock', true);
-        break;
+import 'helpers/notification_service.dart';
 
-      case Workmanager.iOSBackgroundTask:
-        print("iOS background fetch delegate ran");
-        break;
-    }
-
-    //Return true when the task executed successfully or not
-    return Future.value(true);
-  });
-}
+const simpleTaskKey = "task";
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  Workmanager().initialize(callbackDispatcher, isInDebugMode: true);
   runApp(const MyApp());
 }
 
@@ -39,33 +23,59 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
+  ReceivePort receivePort = ReceivePort();
+  final _controller = SecureApplicationController(SecureApplicationState());
+
+  @override
+  void initState() {
+    super.initState();
+    receivePort.listen((message) {
+      var _result = message ?? false;
+      if (_result) {
+        _controller.lock();
+        print(_controller.locked);
+        print("Application Is Locked");
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    return SecureApplication(
-      child: MaterialApp(
-          title: 'Flutter Demo',
-          builder: (context, child) {
-            return SecureApplication(
-              nativeRemoveDelay: 1000,
-              onNeedUnlock: (secure) async {},
-              onAuthenticationFailed: () async {
-                print('auth failed');
-              },
-              onAuthenticationSucceed: () async {
-                print('auth success');
-              },
-              child: Builder(
-                builder: (context) {
-                  // SecureApplicationProvider.of(context)!.secure();
-                  return child!;
-                },
-              ),
-            );
+    return MaterialApp(
+      title: 'Secure application',
+      home: HomePage(),
+      builder: (context, child) {
+        return SecureApplication(
+          secureApplicationController: _controller,
+          nativeRemoveDelay: 1000,
+          onNeedUnlock: (secure) async {},
+          onAuthenticationFailed: () async {
+            print('auth failed');
           },
-          theme: ThemeData(
-            primarySwatch: Colors.blue,
+          onAuthenticationSucceed: () async {
+            print('auth success');
+          },
+          child: Builder(
+            builder: (context) {
+              return SecureGate(
+                // 1
+                blurr: 20,
+                // 2
+                opacity: 0.5,
+                // 3
+                lockedBuilder: (context, secureNotifier) => PinPage(
+                  secure: secureNotifier,
+                  onUnlock: () {
+                    _controller.unlock();
+                  },
+                ),
+                child:
+                    LifeCycleManager(receivePort: receivePort, child: child!),
+              );
+            },
           ),
-          home: const HomePage()),
+        );
+      },
     );
   }
 }

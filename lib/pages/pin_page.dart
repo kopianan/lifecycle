@@ -5,9 +5,10 @@ import 'package:local_auth/local_auth.dart';
 import 'package:secure_application/secure_application.dart';
 
 class PinPage extends StatefulWidget {
-  const PinPage({Key? key, required this.secure, required this.onUnlockSuccess}) : super(key: key);
+  const PinPage({Key? key, required this.secure, required this.onUnlock})
+      : super(key: key);
   final SecureApplicationController? secure;
-  final Function onUnlockSuccess;
+  final Function onUnlock;
 
   @override
   State<PinPage> createState() => _PinPageState();
@@ -25,7 +26,7 @@ class _PinPageState extends State<PinPage> {
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Icon(
+            const Icon(
               Icons.security,
               size: 150,
             ),
@@ -37,20 +38,7 @@ class _PinPageState extends State<PinPage> {
             ),
             const SizedBox(height: 40),
             ElevatedButton(
-              onPressed: () async {
-                var _bio = BiometricHelper();
-                final _result = await _bio.authenticate();
-                if (_result) {
-                  widget.secure!.unlock();
-                }
-              },
-              child: const Text("Unlock With Biometrics"),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                widget.secure!.unlock();
-                widget.onUnlockSuccess();
-              },
+              onPressed: () => widget.onUnlock(),
               child: const Text("Unlock with pin (unlock success)"),
             ),
           ],
